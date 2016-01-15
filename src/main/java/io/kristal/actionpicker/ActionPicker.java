@@ -7,11 +7,11 @@ import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
 
-import fr.cobaltians.cobalt.plugin.CobaltAbstractPlugin;
-import fr.cobaltians.cobalt.Cobalt;
-import fr.cobaltians.cobalt.fragments.CobaltFragment;
-import fr.cobaltians.cobalt.plugin.CobaltAbstractPlugin;
-import fr.cobaltians.cobalt.plugin.CobaltPluginWebContainer;
+import org.cobaltians.cobalt.plugin.CobaltAbstractPlugin;
+import org.cobaltians.cobalt.Cobalt;
+import org.cobaltians.cobalt.fragments.CobaltFragment;
+import org.cobaltians.cobalt.plugin.CobaltAbstractPlugin;
+import org.cobaltians.cobalt.plugin.CobaltPluginWebContainer;
 
 import org.json.JSONArray;
 import org.json.JSONException;
