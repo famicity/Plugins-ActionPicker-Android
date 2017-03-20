@@ -1,16 +1,12 @@
 package io.kristal.actionpicker;
 
 import android.app.AlertDialog;
-import android.content.Context;
 import android.content.DialogInterface;
-import android.os.Bundle;
-import android.view.Menu;
-import android.view.MenuItem;
+import android.util.Log;
 
 import org.cobaltians.cobalt.plugin.CobaltAbstractPlugin;
 import org.cobaltians.cobalt.Cobalt;
 import org.cobaltians.cobalt.fragments.CobaltFragment;
-import org.cobaltians.cobalt.plugin.CobaltAbstractPlugin;
 import org.cobaltians.cobalt.plugin.CobaltPluginWebContainer;
 
 import org.json.JSONArray;
@@ -21,63 +17,82 @@ import java.util.ArrayList;
 
 public class ActionPicker extends CobaltAbstractPlugin {
 
-    private String mCallback;
-    private CobaltFragment mFragment;
-    protected static ActionPicker sInstance;
+    private static final String TAG = CobaltAbstractPlugin.class.getSimpleName();
 
-    @Override
-    public void onMessage(CobaltPluginWebContainer webContainer, JSONObject message) {
-
-        mFragment = webContainer.getFragment();
-
-        if(message.optString("action").equals("getAction")) {
-            JSONObject data = message.optJSONObject(Cobalt.kJSData);
-            mCallback = message.optString(Cobalt.kJSCallback);
-            String cancel = data.optString("cancel");
-
-            JSONArray actionsJSONArray = data.optJSONArray("actions");
-            if (actionsJSONArray != null) {
-               ArrayList<String> actions = new ArrayList<>();
-               for (int i = 0; i < actionsJSONArray.length(); i++){
-               try {
-                   String action = actionsJSONArray.getString(i);
-                   actions.add(action);
-               }
-               catch(JSONException e) { e.printStackTrace(); }
-               }
-               showUIPicker(cancel, actions, mCallback, webContainer);
-               }
-        }
-
-    }
+    private static ActionPicker sInstance;
 
     public static CobaltAbstractPlugin getInstance(CobaltPluginWebContainer webContainer) {
         if (sInstance == null) {
             sInstance = new ActionPicker();
         }
 
-        sInstance.addWebContainer(webContainer);
-
         return sInstance;
     }
 
-    private void showUIPicker(String cancel, final ArrayList<String> actions, final String callback, CobaltPluginWebContainer webCont) {
-        CharSequence[] items = actions.toArray(new CharSequence[actions.size()]);
-        AlertDialog.Builder builder = new AlertDialog.Builder(webCont.getActivity());
-        builder.setItems(items, new DialogInterface.OnClickListener() {
+    @Override
+    public void onMessage(CobaltPluginWebContainer webContainer, JSONObject message) {
+        try {
+            String action = message.getString("action");
+            if ("getAction".equals(action)) {
+                JSONObject data = message.getJSONObject(Cobalt.kJSData);
+                JSONArray actionsJSON = data.getJSONArray("actions");
+                int actionsLength = actionsJSON.length();
+                String callback = message.getString(Cobalt.kJSCallback);
 
-            public void onClick(DialogInterface dialog, int item) {
-                JSONObject data = new JSONObject();
-                try {
-                    data.put("index", item);
-                    mFragment.sendCallback(callback, data);
-                } catch (JSONException e) {
-                    e.printStackTrace();
+                ArrayList<String> actions = new ArrayList<>(actionsLength);
+                for (int i = 0; i < actionsLength; i++){
+                    actions.add(actionsJSON.getString(i));
                 }
+
+                showUIPicker(actions, callback, webContainer);
             }
-        });
-        AlertDialog alert = builder.create();
-        alert.show();
+            else if (Cobalt.DEBUG) {
+                Log.w(TAG, "onMessage: action '" + action + "' not recognized");
+            }
+        }
+        catch(JSONException exception) {
+            if (Cobalt.DEBUG) {
+                Log.e(TAG, "onMessage: wrong format, possible issues: \n" +
+                        "\t- missing 'action' field or not a string,\n" +
+                        "\t- missing 'data' field or not a object,\n" +
+                        "\t- missing 'data.actions' field or not an array,\n" +
+                        "\t- missing 'callback' field or not a string.\n");
+            }
+            exception.printStackTrace();
+        }
     }
 
+    private void showUIPicker(ArrayList<String> actions, final String callback, CobaltPluginWebContainer webContainer) {
+        CharSequence[] items = actions.toArray(new CharSequence[actions.size()]);
+        final CobaltFragment fragment = webContainer.getFragment();
+
+        new AlertDialog.Builder(webContainer.getActivity())
+                .setItems(items, new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialogInterface, int i) {
+                        try {
+                            JSONObject data = new JSONObject();
+                            data.put("index", i);
+                            fragment.sendCallback(callback, data);
+                        }
+                        catch (JSONException exception) {
+                            exception.printStackTrace();
+                        }
+                    }
+                })
+                .setOnCancelListener(new DialogInterface.OnCancelListener() {
+                    @Override
+                    public void onCancel(DialogInterface dialogInterface) {
+                        try {
+                            JSONObject data = new JSONObject();
+                            data.put("index", -1);
+                            fragment.sendCallback(callback, data);
+                        }
+                        catch (JSONException exception) {
+                            exception.printStackTrace();
+                        }
+                    }
+                })
+                .show();
+    }
 }
